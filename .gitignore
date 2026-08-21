@@ -3,11 +3,6 @@
 [Oo]bj/
 wwwroot/
 
-## Angular output
-ClientApp/node_modules/
-ClientApp/dist/
-ClientApp/.angular/
-
 ## Local SQLite database files
 Database/*.db
 Database/*.db-journal

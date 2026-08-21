@@ -1,10 +1,9 @@
 # Wrap Password Assessment
 
-An ASP.NET Core API with a blank Angular frontend organized around MVC
-boundaries and a lightweight local SQLite database.
+An ASP.NET Core API organized around MVC boundaries with a lightweight local
+SQLite database.
 
-Requires .NET 9 and Node.js 24.15 or newer. The client includes an `.nvmrc` for
-Node 24.18.
+Requires .NET 9.
 
 > **Database note:** The project uses SQLite through Entity Framework Core. The
 > database is created automatically at `Database/wrap-password-assessment.db`
@@ -18,14 +17,7 @@ Controllers/                 ASP.NET API controllers
 Data/                        EF Core database context
 Database/                    Per-clone SQLite data (generated locally)
 Models/                      Backend response models
-ClientApp/src/app/
-  models/                    Domain rules and derived state
-  controllers/               Angular state and event orchestration
-  views/                     Presentational Angular components
-  app.ts                     Blank client composition root
 ```
-
-The frontend shell intentionally contains no page content or custom styling.
 
 ## Local database
 
@@ -52,43 +44,21 @@ Run the backend API:
 dotnet run --launch-profile http
 ```
 
-In a second terminal, run the Angular client:
-
-```bash
-cd ClientApp
-nvm use
-npm install
-npm start
-```
-
-Open `http://localhost:4200`. Angular proxies `/api` requests to the ASP.NET API at
-`http://localhost:5080`. The backend port serves API routes only; opening
-`http://localhost:5080/` returns HTTP 404 by design.
+The backend API runs at `http://localhost:5080`. Opening the root URL returns
+HTTP 404 by design because the application serves API routes only.
 
 Database connectivity is included in `http://localhost:5080/api/status`.
 
 ## Production build
 
-Build and publish the frontend and backend independently:
+Build and publish the backend:
 
 ```bash
-cd ClientApp
-nvm use
-npm ci
-npm run build
-cd ..
 dotnet publish -c Release
 ```
-
-The Angular output is written to `ClientApp/dist`. ASP.NET does not copy or serve
-that output.
 
 ## Verification
 
 ```bash
 dotnet build
-cd ClientApp
-npm run format:check
-npm test
-npm run build
 ```
