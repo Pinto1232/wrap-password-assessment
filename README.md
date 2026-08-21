@@ -19,7 +19,7 @@ ClientApp/src/
   app.ts                     Client composition root
 ```
 
-On the client, user events flow from a view to a controller hook. The controller
+On the client, user events flow from a view to a controller. The controller
 passes input to the model and returns the resulting view state for rendering.
 
 ## Development
@@ -40,12 +40,12 @@ npm start
 ```
 
 Open `http://localhost:4200`. Angular proxies `/api` requests to the ASP.NET API at
-`http://localhost:5080`.
+`http://localhost:5080`. The backend port serves API routes only; opening
+`http://localhost:5080/` returns HTTP 404 by design.
 
 ## Production build
 
-Build Angular into ASP.NET's static web root before publishing or running the
-server:
+Build and publish the frontend and backend independently:
 
 ```bash
 cd ClientApp
@@ -55,6 +55,9 @@ npm run build
 cd ..
 dotnet publish -c Release
 ```
+
+The Angular output is written to `ClientApp/dist`. ASP.NET does not copy or serve
+that output.
 
 ## Verification
 
