@@ -8,6 +8,14 @@ ClientApp/node_modules/
 ClientApp/dist/
 ClientApp/.angular/
 
+## Local SQLite database files
+Database/*.db
+Database/*.db-journal
+Database/*.db-shm
+Database/*.db-wal
+Database/*.sqlite
+Database/*.sqlite3
+
 ## IDE and user-specific files
 .vs/
 .vscode/
