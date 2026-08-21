@@ -6,6 +6,11 @@ boundaries and a lightweight local SQLite database.
 Requires .NET 9 and Node.js 24.15 or newer. The client includes an `.nvmrc` for
 Node 24.18.
 
+> **Database note:** The project uses SQLite through Entity Framework Core. The
+> database is created automatically at `Database/wrap-password-assessment.db`
+> when the backend first starts. Database files are not committed, so each clone
+> gets its own local database without requiring a separate database server.
+
 ## Architecture
 
 ```text
