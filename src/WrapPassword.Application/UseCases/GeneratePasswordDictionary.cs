@@ -1,17 +1,16 @@
 using WrapPassword.Application.Abstractions;
 using WrapPassword.Application.Models;
-using WrapPassword.Application.Services;
 using WrapPassword.Domain.Passwords;
 
 namespace WrapPassword.Application.UseCases;
 
 public sealed class GeneratePasswordDictionary
 {
-    private readonly PasswordDictionaryGenerator _generator;
+    private readonly IPasswordDictionaryGenerator _generator;
     private readonly IPasswordDictionaryWriter _writer;
 
     public GeneratePasswordDictionary(
-        PasswordDictionaryGenerator generator,
+        IPasswordDictionaryGenerator generator,
         IPasswordDictionaryWriter writer)
     {
         _generator = generator;

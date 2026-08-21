@@ -1,8 +1,9 @@
+using WrapPassword.Application.Abstractions;
 using WrapPassword.Domain.Passwords;
 
 namespace WrapPassword.Application.Services;
 
-public sealed class PasswordDictionaryGenerator
+public sealed class PasswordDictionaryGenerator : IPasswordDictionaryGenerator
 {
     public IEnumerable<string> Generate()
     {

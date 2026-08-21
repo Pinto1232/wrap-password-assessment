@@ -11,6 +11,7 @@ Completed:
 - Generate every permitted variation of `password`.
 - Validate that the dictionary contains exactly 1,296 unique candidates.
 - Write the candidates to `dict.txt` using UTF-8.
+- Verify the dictionary with unit, integration, and regression tests.
 
 Still to be implemented:
 
@@ -35,6 +36,10 @@ src/
   WrapPassword.Application/             Use cases, models, and abstractions
   WrapPassword.Infrastructure/          File and external-service adapters
   WrapPassword.Cli/                     Console entry point and dependency wiring
+WrapPassword.Tests/
+  WrapPassword.Application.UnitTests/   Dictionary and use-case unit tests
+  WrapPassword.IntegrationTests/        Application and file-system integration tests
+  WrapPassword.RegressionTests/         Stable dictionary content and ordering tests
 ```
 
 ## Clean Architecture
@@ -63,6 +68,37 @@ From the repository root:
 ```bash
 dotnet build WrapPassword.sln
 ```
+
+## Run the automated tests
+
+Run every test suite from the repository root:
+
+```bash
+dotnet test WrapPassword.sln
+```
+
+Run one suite at a time:
+
+```bash
+dotnet test WrapPassword.Tests/WrapPassword.Application.UnitTests/WrapPassword.Application.UnitTests.csproj
+dotnet test WrapPassword.Tests/WrapPassword.IntegrationTests/WrapPassword.IntegrationTests.csproj
+dotnet test WrapPassword.Tests/WrapPassword.RegressionTests/WrapPassword.RegressionTests.csproj
+```
+
+Show detailed test output:
+
+```bash
+dotnet test WrapPassword.sln --logger "console;verbosity=detailed"
+```
+
+| Test suite | Purpose |
+| --- | --- |
+| Application unit tests | Verify candidate count, uniqueness, allowed characters, deterministic ordering, and use-case validation |
+| Integration tests | Run the real use case with the Infrastructure file writer and verify the UTF-8 file on disk |
+| Regression tests | Detect unintended changes to canonical dictionary content and ordering using a SHA-256 fingerprint |
+
+The integration tests use a temporary local directory and clean it afterward.
+Automated tests never call the live recruitment API.
 
 ## Generate the password dictionary
 
