@@ -11,8 +11,6 @@ public sealed class RecruitmentAuthenticationClient : IRecruitmentAuthentication
     public const int DefaultRequestsPerSecond = 9;
 
     private const int MaximumRequestsPerSecond = 10;
-    private const string UploadHost = "recruitment.warpdevelopment.co.za";
-    private const string UploadPathPrefix = "/v2/api/upload/";
     private static readonly Uri AuthenticationEndpoint = new(
         "https://recruitment.warpdevelopment.co.za/v2/api/authenticate");
 
@@ -202,7 +200,7 @@ public sealed class RecruitmentAuthenticationClient : IRecruitmentAuthentication
     private static bool TryCreateValidUploadUri(string value, out Uri uploadUri)
     {
         if (Uri.TryCreate(value, UriKind.Absolute, out var candidate)
-            && IsExpectedUploadUri(candidate))
+            && RecruitmentUploadUriValidator.IsValid(candidate))
         {
             uploadUri = candidate;
             return true;
@@ -210,19 +208,5 @@ public sealed class RecruitmentAuthenticationClient : IRecruitmentAuthentication
 
         uploadUri = null!;
         return false;
-    }
-
-    private static bool IsExpectedUploadUri(Uri candidate)
-    {
-        return string.Equals(
-                candidate.Scheme,
-                Uri.UriSchemeHttps,
-                StringComparison.OrdinalIgnoreCase)
-            && string.Equals(candidate.IdnHost, UploadHost, StringComparison.OrdinalIgnoreCase)
-            && candidate.IsDefaultPort
-            && string.IsNullOrEmpty(candidate.UserInfo)
-            && string.IsNullOrEmpty(candidate.Fragment)
-            && candidate.AbsolutePath.StartsWith(UploadPathPrefix, StringComparison.Ordinal)
-            && candidate.AbsolutePath.Length > UploadPathPrefix.Length;
     }
 }

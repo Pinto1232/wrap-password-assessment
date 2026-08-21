@@ -1,7 +1,7 @@
 # Wrap Password
 
 A .NET 9 solution for the Password API Assessment. The required assessment
-workflow is implemented as a console application using Clean Architecture. A
+workflow is being implemented as a console application using Clean Architecture. A
 small ASP.NET Core Minimal API provides an optional SQLite-backed status endpoint.
 
 ## Current implementation
@@ -17,11 +17,14 @@ Completed:
   upload URL.
 - Build and verify an allowlisted submission ZIP with a SHA-256 manifest.
 - Reject submission ZIPs that are 5,000,000 bytes or larger.
+- Base64-encode and upload the validated ZIP with one JSON POST.
+- Reject untrusted upload URLs and never retry an upload automatically.
 - Verify the dictionary with unit, integration, and regression tests.
 
 Still to be implemented:
 
-- Base64-encode and upload the ZIP to the temporary URL.
+- Compose preparation, authentication, confirmation, and upload in one `run`
+  command.
 
 ## Solution structure
 
@@ -40,7 +43,7 @@ src/
   WrapPassword.Domain/                  Core password rules
   WrapPassword.Application/             Use cases, models, and abstractions
   WrapPassword.Infrastructure/          File and external-service adapters
-    RecruitmentApi/                     Rate-limited Basic Auth HTTP client
+    RecruitmentApi/                     Rate-limited authentication and one-shot upload clients
     Packaging/                          PDF validation and submission ZIP builder
   WrapPassword.Cli/                     Console entry point and dependency wiring
 WrapPassword.Tests/
@@ -118,7 +121,7 @@ dotnet test WrapPassword.sln --logger "console;verbosity=detailed"
 | Test suite | Purpose |
 | --- | --- |
 | Application unit tests | Verify candidate count, uniqueness, ordering, use-case validation, authentication stopping, exhaustion, and cancellation |
-| Integration tests | Verify UTF-8 output, Basic Auth behavior, rate limiting, PDF validation, ZIP contents, exclusions, hashes, and deterministic archives |
+| Integration tests | Verify UTF-8 output, Basic Auth, rate limiting, ZIP safety, exact upload JSON/Base64, URL validation, and one-shot behavior |
 | Regression tests | Detect unintended changes to canonical dictionary content and ordering using a SHA-256 fingerprint |
 
 File integration tests use temporary local directories and clean them afterward.
@@ -220,13 +223,14 @@ The stage handles `401 Unauthorized` as an incorrect password and continues. On
 `recruitment.warpdevelopment.co.za` under `/v2/api/upload/`. Credentials,
 candidate passwords, Authorization values, and temporary URLs are not logged.
 
-> **Live-request warning:** ZIP preparation is complete, but the upload stage is
-> not implemented yet. Do not run live authentication merely to test it because
-> the temporary URL is intentionally not printed or saved. Use
+> **Live-request warning:** ZIP preparation and one-shot upload are implemented,
+> but they are not composed into the final confirmed workflow yet. Do not run
+> live authentication merely to test it because the temporary URL is
+> intentionally not printed or saved. Use
 > `dotnet test WrapPassword.sln` for safe verification until the complete
 > prepare-authenticate-upload workflow is available.
 
-When the complete workflow is ready, its authentication command will be:
+The standalone authentication command is:
 
 ```bash
 dotnet run --project src/WrapPassword.Cli -- authenticate
@@ -244,6 +248,27 @@ The authentication endpoint is deliberately fixed to the HTTPS URL supplied by
 the assessment, preventing candidate credentials from being redirected through
 configuration. Trying all 1,296 candidates takes at least approximately 2
 minutes and 24 seconds at nine requests per second, plus network response time.
+
+## Upload stage
+
+The upload use case accepts the validated temporary URL, prepared ZIP path, and
+applicant details. Its infrastructure client reads the ZIP, confirms it is a
+readable archive below 5,000,000 bytes, Base64-encodes the exact bytes, and sends
+one `application/json` POST containing only these lower-case fields:
+
+```text
+data, name, surname, email
+```
+
+The client accepts only the expected HTTPS recruitment upload URL and HTTP 200
+with a `Success` message. It does not retry failures, timeouts, or HTTP 429
+responses because the server might already have received the submission.
+Personal details, Base64 data, and temporary URLs are never logged.
+
+The upload stage intentionally has no standalone live CLI command. It will be
+called only by the final `run` workflow after local preparation and explicit
+confirmation. Fake-handler integration tests verify the request contract and
+one-POST behavior without contacting the recruitment API.
 
 ## Run the optional API
 
