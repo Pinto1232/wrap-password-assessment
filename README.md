@@ -1,8 +1,7 @@
 # Wrap Password Assessment
 
-An ASP.NET Core API with an Angular frontend organized around MVC boundaries.
-Password assessment runs entirely in the browser; the entered value is not sent
-to the backend.
+An ASP.NET Core API with a blank Angular frontend organized around MVC
+boundaries.
 
 Requires .NET 9 and Node.js 24.15 or newer. The client includes an `.nvmrc` for
 Node 24.18.
@@ -12,15 +11,14 @@ Node 24.18.
 ```text
 Controllers/                 ASP.NET API controllers
 Models/                      Backend response models
-ClientApp/src/
+ClientApp/src/app/
   models/                    Domain rules and derived state
-  controllers/               Angular signals and event orchestration
+  controllers/               Angular state and event orchestration
   views/                     Presentational Angular components
-  app.ts                     Client composition root
+  app.ts                     Blank client composition root
 ```
 
-On the client, user events flow from a view to a controller. The controller
-passes input to the model and returns the resulting view state for rendering.
+The frontend shell intentionally contains no page content or custom styling.
 
 ## Development
 
