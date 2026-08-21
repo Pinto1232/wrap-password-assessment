@@ -1,12 +1,11 @@
+using WrapPassword.Application.Models;
 using WrapPassword.Application.Services;
 using WrapPassword.Application.UseCases;
-using WrapPassword.Domain.Passwords;
+using WrapPassword.Cli;
 using WrapPassword.Infrastructure.Files;
 using WrapPassword.Infrastructure.Packaging;
 using WrapPassword.Infrastructure.RecruitmentApi;
 
-const string UsernameEnvironmentVariable = "WRAP_PASSWORD_USERNAME";
-const string DefaultUsername = "John";
 const int HttpTimeoutSeconds = 15;
 
 if (args.Length == 0 || args[0] is "--help" or "-h")
@@ -29,7 +28,7 @@ try
     {
         "generate" => await GenerateDictionaryAsync(args, cancellationSource.Token),
         "prepare" => await PrepareArchiveAsync(args, cancellationSource.Token),
-        "authenticate" => await AuthenticateAsync(args, cancellationSource.Token),
+        "run" => await RunSubmissionAsync(args, cancellationSource.Token),
         _ => UnknownCommand(args[0])
     };
 }
@@ -107,19 +106,24 @@ static async Task<int> PrepareArchiveAsync(
     return 0;
 }
 
-static async Task<int> AuthenticateAsync(
+static async Task<int> RunSubmissionAsync(
     string[] commandArguments,
     CancellationToken cancellationToken)
 {
-    if (commandArguments.Length != 1)
+    if (commandArguments.Length is < 2 or > 3)
     {
-        Console.Error.WriteLine("The authenticate command does not accept arguments.");
+        Console.Error.WriteLine(
+            "The run command requires a CV path and accepts one optional ZIP output path.");
         PrintUsage();
         return 1;
     }
 
-    var username = Environment.GetEnvironmentVariable(UsernameEnvironmentVariable)
-        ?? DefaultUsername;
+    var cvPath = commandArguments[1];
+    var archivePath = commandArguments.Length == 3
+        ? commandArguments[2]
+        : Path.Combine("artifacts", "submission.zip");
+    var repositoryRoot = Directory.GetCurrentDirectory();
+    var environment = new SubmissionEnvironmentReader().Read();
 
     using var handler = new SocketsHttpHandler
     {
@@ -130,21 +134,53 @@ static async Task<int> AuthenticateAsync(
         Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds)
     };
 
-    var generator = new PasswordDictionaryGenerator();
+    var dictionaryGenerator = new PasswordDictionaryGenerator();
+    var dictionaryWriter = new PasswordDictionaryFileWriter();
+    var generateDictionary = new GeneratePasswordDictionaryUseCase(
+        dictionaryGenerator,
+        dictionaryWriter);
+    var archiveBuilder = new SubmissionArchiveBuilder();
+    var prepareArchive = new PrepareSubmissionArchiveUseCase(
+        generateDictionary,
+        archiveBuilder);
+
     using var authenticationClient = new RecruitmentAuthenticationClient(httpClient);
     var authenticateCandidates = new AuthenticatePasswordCandidatesUseCase(
-        generator,
+        dictionaryGenerator,
         authenticationClient);
+    var submissionClient = new RecruitmentSubmissionClient(httpClient);
+    var uploadSubmission = new UploadSubmissionUseCase(submissionClient);
+    var confirmation = new ConsoleLiveSubmissionConfirmation(Console.In, Console.Out);
+    var workflow = new RunSubmissionWorkflowUseCase(
+        prepareArchive,
+        confirmation,
+        authenticateCandidates,
+        uploadSubmission);
+    var request = new SubmissionWorkflowRequest(
+        repositoryRoot,
+        cvPath,
+        archivePath,
+        environment.Username,
+        environment.Applicant);
+
+    Console.WriteLine("Preparing and verifying the submission locally.");
+    Console.WriteLine("No network request will be made before explicit confirmation.");
+
+    var result = await workflow.ExecuteAsync(request, cancellationToken);
+
+    if (!result.WasSubmitted)
+    {
+        Console.WriteLine("Submission cancelled. No authentication or upload request was made.");
+        return 2;
+    }
+
+    var uploadResult = result.UploadResult
+        ?? throw new InvalidOperationException("The completed workflow has no upload result.");
 
     Console.WriteLine(
-        $"Trying {PasswordRules.ExpectedCandidateCount:N0} candidates at "
-        + $"{RecruitmentAuthenticationClient.DefaultRequestsPerSecond} requests per second.");
-    Console.WriteLine("Press Ctrl+C to cancel. Credentials and URLs will not be displayed.");
-
-    var result = await authenticateCandidates.ExecuteAsync(username, cancellationToken);
-
-    Console.WriteLine($"Authentication succeeded after {result.AttemptCount:N0} attempts.");
-    Console.WriteLine("The temporary upload URL was received and validated.");
+        $"Authentication succeeded after {result.AuthenticationAttemptCount:N0} attempts.");
+    Console.WriteLine(
+        $"Submission confirmed: HTTP {uploadResult.StatusCode} {uploadResult.Message}.");
     return 0;
 }
 
@@ -162,5 +198,5 @@ static void PrintUsage()
     Console.WriteLine("Usage:");
     Console.WriteLine("  dotnet run --project src/WrapPassword.Cli -- generate [output-path]");
     Console.WriteLine("  dotnet run --project src/WrapPassword.Cli -- prepare <cv-path> [output-path]");
-    Console.WriteLine("  dotnet run --project src/WrapPassword.Cli -- authenticate");
+    Console.WriteLine("  dotnet run --project src/WrapPassword.Cli -- run <cv-path> [output-path]");
 }

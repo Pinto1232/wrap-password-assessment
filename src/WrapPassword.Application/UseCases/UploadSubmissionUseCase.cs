@@ -1,6 +1,6 @@
-using System.Net.Mail;
 using WrapPassword.Application.Abstractions;
 using WrapPassword.Application.Models;
+using WrapPassword.Application.Services;
 
 namespace WrapPassword.Application.UseCases;
 
@@ -28,23 +28,11 @@ public sealed class UploadSubmissionUseCase
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.UploadUri);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ArchivePath);
-        ArgumentNullException.ThrowIfNull(request.Applicant);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.Applicant.Name);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.Applicant.Surname);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.Applicant.Email);
+        ApplicantDetailsValidator.Validate(request.Applicant);
 
         if (!request.UploadUri.IsAbsoluteUri)
         {
             throw new ArgumentException("The upload URL must be absolute.");
-        }
-
-        if (!MailAddress.TryCreate(request.Applicant.Email, out var parsedEmail)
-            || !string.Equals(
-                parsedEmail.Address,
-                request.Applicant.Email,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException("The applicant email address is invalid.");
         }
     }
 }
