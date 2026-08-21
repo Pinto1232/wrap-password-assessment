@@ -88,6 +88,36 @@ convention. The underscore naming analyzer is disabled only for test source file
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 
+## Local environment variables
+
+The CLI reads runtime values from operating-system environment variables. It
+does not automatically load a `.env` file and does not require a dotenv package.
+Set the values in the terminal session that will run the CLI:
+
+```bash
+export WRAP_PASSWORD_USERNAME="John"
+export WRAP_PASSWORD_NAME="Your name"
+export WRAP_PASSWORD_SURNAME="Your surname"
+export WRAP_PASSWORD_EMAIL="you@example.com"
+```
+
+`.env.example` documents the supported variable names without containing real
+personal values. If a local shell file is preferred, copy the example to the
+ignored `.env`, enter the values, and explicitly export it before running the
+CLI:
+
+```bash
+cp .env.example .env
+set -a
+source .env
+set +a
+```
+
+The `.env` file is intentionally ignored by Git and excluded from submission
+archives. Only the value-free `.env.example` is tracked and packaged. The name,
+surname, and email variables will be consumed by the upcoming confirmed `run`
+workflow; the current authentication command already reads the username.
+
 ## Build the solution
 
 From the repository root:
@@ -318,6 +348,7 @@ dotnet publish WrapPassword.csproj -c Release -o artifacts/api
 
 The following paths are intentionally ignored by Git:
 
+- `.env` and environment-specific variants — local runtime values.
 - `dict.txt` and `artifacts/` — generated assessment output.
 - `Database/*.db*` — per-clone SQLite data.
 - `docs/` — local planning and AI-assistance records that will be added directly

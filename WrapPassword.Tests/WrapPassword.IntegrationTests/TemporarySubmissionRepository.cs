@@ -8,6 +8,7 @@ internal sealed class TemporarySubmissionRepository : IDisposable
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [".editorconfig"] = "root = true\n",
+            [".env.example"] = "WRAP_PASSWORD_EMAIL=\n",
             [".gitignore"] = "bin/\nobj/\n",
             ["appsettings.Development.json"] = "{}\n",
             ["appsettings.json"] = "{}\n",

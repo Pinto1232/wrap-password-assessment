@@ -18,6 +18,11 @@ Database/*.sqlite3
 *.user
 *.suo
 
+## Local environment values
+.env
+.env.*
+!.env.example
+
 ## Test and coverage output
 TestResults/
 coverage/

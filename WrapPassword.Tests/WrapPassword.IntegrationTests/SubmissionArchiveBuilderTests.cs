@@ -27,6 +27,7 @@ public sealed class SubmissionArchiveBuilderTests
         var entryNames = archive.Entries.Select(entry => entry.FullName).ToArray();
 
         Assert.Contains("CV/candidate-cv.pdf", entryNames);
+        Assert.Contains(".env.example", entryNames);
         Assert.Contains("dict.txt", entryNames);
         Assert.Contains("README.md", entryNames);
         Assert.Contains("docs/IMPLEMENTATION_PLAN.md", entryNames);

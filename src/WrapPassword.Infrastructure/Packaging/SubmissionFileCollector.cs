@@ -5,6 +5,7 @@ internal static class SubmissionFileCollector
     private static readonly string[] RootFileAllowlist =
     [
         ".editorconfig",
+        ".env.example",
         ".gitignore",
         "appsettings.Development.json",
         "appsettings.json",
