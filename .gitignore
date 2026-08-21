@@ -1,6 +1,12 @@
 ## Build results
 [Bb]in/
 [Oo]bj/
+wwwroot/
+
+## Angular output
+ClientApp/node_modules/
+ClientApp/dist/
+ClientApp/.angular/
 
 ## IDE and user-specific files
 .vs/
