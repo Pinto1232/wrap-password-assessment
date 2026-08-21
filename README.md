@@ -10,13 +10,15 @@ Completed:
 
 - Generate every permitted variation of `password`.
 - Validate that the dictionary contains exactly 1,296 unique candidates.
-- Write the candidates to `dict.txt` using UTF-8.
+- Write the candidates atomically to `dict.txt` using UTF-8.
+- Authenticate candidates sequentially with HTTP Basic authentication at a safe
+  rate of nine requests per second.
+- Validate that a successful response contains the expected temporary HTTPS
+  upload URL.
 - Verify the dictionary with unit, integration, and regression tests.
 
 Still to be implemented:
 
-- Authenticate against the recruitment API at no more than 10 requests per
-  second.
 - Create and validate the submission ZIP.
 - Base64-encode and upload the ZIP to the temporary URL.
 
@@ -25,6 +27,8 @@ Still to be implemented:
 ```text
 WrapPassword.sln
 WrapPassword.csproj                     ASP.NET Core Minimal API host
+Directory.Build.props                   Shared compiler and analyzer rules
+.editorconfig                           Repository formatting conventions
 Program.cs                              API composition root
 Contracts/                              API request and response contracts
 Data/                                   EF Core database context
@@ -35,6 +39,7 @@ src/
   WrapPassword.Domain/                  Core password rules
   WrapPassword.Application/             Use cases, models, and abstractions
   WrapPassword.Infrastructure/          File and external-service adapters
+    RecruitmentApi/                     Rate-limited Basic Auth HTTP client
   WrapPassword.Cli/                     Console entry point and dependency wiring
 WrapPassword.Tests/
   WrapPassword.Application.UnitTests/   Dictionary and use-case unit tests
@@ -48,7 +53,7 @@ WrapPassword.Tests/
 | --- | --- | --- |
 | `WrapPassword.Domain` | Nothing | Defines the password variation rules |
 | `WrapPassword.Application` | Domain | Generates and validates candidates and coordinates use cases |
-| `WrapPassword.Infrastructure` | Application | Implements file access and, later, external HTTP and ZIP operations |
+| `WrapPassword.Infrastructure` | Application | Implements file access and external HTTP; ZIP support comes next |
 | `WrapPassword.Cli` | Application and Infrastructure | Parses commands and wires implementations to use cases |
 
 Dependencies point toward the Domain. Business rules do not depend on file
@@ -56,6 +61,23 @@ access, HTTP clients, the console, ASP.NET Core, EF Core, or SQLite.
 
 The root Minimal API is currently a separate support host. It exposes application
 status but does not contain or duplicate the password-generation rules.
+
+## Code quality rules
+
+The repository enforces the following rules for every project:
+
+- Nullable reference types and compiler warnings are checked during builds.
+- Recommended .NET analyzers and `.editorconfig` conventions run as part of the
+  build.
+- All warnings are treated as errors.
+- Use cases validate dependencies and inputs at their boundaries.
+- Dictionary rules are centralized in `PasswordDictionaryValidator` instead of
+  being repeated by individual use cases.
+- File generation uses a temporary file and atomic replacement, so cancellation
+  cannot partially overwrite an existing dictionary.
+
+Test methods deliberately use the readable `Method_Condition_Result` naming
+convention. The underscore naming analyzer is disabled only for test source files.
 
 ## Prerequisite
 
@@ -93,11 +115,11 @@ dotnet test WrapPassword.sln --logger "console;verbosity=detailed"
 
 | Test suite | Purpose |
 | --- | --- |
-| Application unit tests | Verify candidate count, uniqueness, allowed characters, deterministic ordering, and use-case validation |
-| Integration tests | Run the real use case with the Infrastructure file writer and verify the UTF-8 file on disk |
+| Application unit tests | Verify candidate count, uniqueness, ordering, use-case validation, authentication stopping, exhaustion, and cancellation |
+| Integration tests | Verify UTF-8 file output plus Basic Auth requests, response handling, upload URL validation, and rate limiting with a fake HTTP handler |
 | Regression tests | Detect unintended changes to canonical dictionary content and ordering using a SHA-256 fingerprint |
 
-The integration tests use a temporary local directory and clean it afterward.
+File integration tests use temporary local directories and clean them afterward.
 Automated tests never call the live recruitment API.
 
 ## Generate the password dictionary
@@ -135,6 +157,41 @@ d -> d, D
 ```
 
 The total is `2 × 3 × 3 × 3 × 2 × 3 × 2 × 2 = 1,296` candidates.
+
+## Authentication stage
+
+The authentication client sends sequential `GET` requests using HTTP Basic
+authentication. It uses the assessment username `John` and tries each generated
+password at nine requests per second, which stays below the limit of ten.
+
+The stage handles `401 Unauthorized` as an incorrect password and continues. On
+`200 OK`, it stops and accepts the returned URL only when it is an HTTPS URL on
+`recruitment.warpdevelopment.co.za` under `/v2/api/upload/`. Credentials,
+candidate passwords, Authorization values, and temporary URLs are not logged.
+
+> **Live-request warning:** the upload stage is not implemented yet. Do not run
+> live authentication merely to test it because the temporary URL is intentionally
+> not printed or saved. Use `dotnet test WrapPassword.sln` for safe verification
+> until the complete prepare-authenticate-upload workflow is available.
+
+When the complete workflow is ready, its authentication command will be:
+
+```bash
+dotnet run --project src/WrapPassword.Cli -- authenticate
+```
+
+The assessment username defaults to `John` and can be overridden without
+changing source code:
+
+```bash
+WRAP_PASSWORD_USERNAME=John \
+dotnet run --project src/WrapPassword.Cli -- authenticate
+```
+
+The authentication endpoint is deliberately fixed to the HTTPS URL supplied by
+the assessment, preventing candidate credentials from being redirected through
+configuration. Trying all 1,296 candidates takes at least approximately 2
+minutes and 24 seconds at nine requests per second, plus network response time.
 
 ## Run the optional API
 

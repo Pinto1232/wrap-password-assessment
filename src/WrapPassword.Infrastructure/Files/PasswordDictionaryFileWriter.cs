@@ -10,6 +10,7 @@ public sealed class PasswordDictionaryFileWriter : IPasswordDictionaryWriter
         string outputPath,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(candidates);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
 
         var fullOutputPath = Path.GetFullPath(outputPath);
@@ -17,9 +18,32 @@ public sealed class PasswordDictionaryFileWriter : IPasswordDictionaryWriter
             ?? throw new InvalidOperationException("The output directory could not be resolved.");
 
         Directory.CreateDirectory(outputDirectory);
+        var temporaryOutputPath = Path.Combine(
+            outputDirectory,
+            $".{Path.GetFileName(fullOutputPath)}.{Guid.NewGuid():N}.tmp");
 
+        try
+        {
+            await WriteCandidatesAsync(candidates, temporaryOutputPath, cancellationToken);
+            File.Move(temporaryOutputPath, fullOutputPath, overwrite: true);
+            return fullOutputPath;
+        }
+        finally
+        {
+            if (File.Exists(temporaryOutputPath))
+            {
+                File.Delete(temporaryOutputPath);
+            }
+        }
+    }
+
+    private static async Task WriteCandidatesAsync(
+        IEnumerable<string> candidates,
+        string outputPath,
+        CancellationToken cancellationToken)
+    {
         await using var writer = new StreamWriter(
-            fullOutputPath,
+            outputPath,
             append: false,
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
@@ -28,7 +52,5 @@ public sealed class PasswordDictionaryFileWriter : IPasswordDictionaryWriter
             cancellationToken.ThrowIfCancellationRequested();
             await writer.WriteLineAsync(candidate.AsMemory(), cancellationToken);
         }
-
-        return fullOutputPath;
     }
 }

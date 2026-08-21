@@ -6,20 +6,20 @@ using Xunit;
 
 namespace WrapPassword.Application.UnitTests;
 
-public sealed class GeneratePasswordDictionaryTests
+public sealed class GeneratePasswordDictionaryUseCaseTests
 {
     [Fact]
     public async Task ExecuteAsync_WritesValidatedCandidatesAndReturnsResult()
     {
         var writer = new RecordingDictionaryWriter();
-        var useCase = new GeneratePasswordDictionary(
+        var useCase = new GeneratePasswordDictionaryUseCase(
             new PasswordDictionaryGenerator(),
             writer);
 
         var result = await useCase.ExecuteAsync("test-dict.txt");
 
         Assert.True(writer.WasCalled);
-        Assert.Equal(PasswordRules.ExpectedCandidateCount, writer.Candidates.Count);
+        Assert.Equal(PasswordRules.ExpectedCandidateCount, writer.Candidates.Length);
         Assert.Equal(PasswordRules.ExpectedCandidateCount, result.CandidateCount);
         Assert.Equal("test-dict.txt", result.OutputPath);
     }
@@ -29,7 +29,7 @@ public sealed class GeneratePasswordDictionaryTests
     {
         var generator = new StubDictionaryGenerator(["password"]);
         var writer = new RecordingDictionaryWriter();
-        var useCase = new GeneratePasswordDictionary(generator, writer);
+        var useCase = new GeneratePasswordDictionaryUseCase(generator, writer);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => useCase.ExecuteAsync("test-dict.txt"));
@@ -45,7 +45,7 @@ public sealed class GeneratePasswordDictionaryTests
             PasswordRules.ExpectedCandidateCount);
         var generator = new StubDictionaryGenerator(duplicateCandidates);
         var writer = new RecordingDictionaryWriter();
-        var useCase = new GeneratePasswordDictionary(generator, writer);
+        var useCase = new GeneratePasswordDictionaryUseCase(generator, writer);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => useCase.ExecuteAsync("test-dict.txt"));
@@ -69,7 +69,7 @@ public sealed class GeneratePasswordDictionaryTests
     {
         public bool WasCalled { get; private set; }
 
-        public IReadOnlyList<string> Candidates { get; private set; } = [];
+        public string[] Candidates { get; private set; } = [];
 
         public Task<string> WriteAsync(
             IEnumerable<string> candidates,

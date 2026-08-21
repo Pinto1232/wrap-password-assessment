@@ -12,14 +12,12 @@ public sealed class DictionaryGenerationIntegrationTests
     [Fact]
     public async Task ExecuteAsync_WritesCompleteUtf8DictionaryToDisk()
     {
-        var testDirectory = Path.Combine(
-            Path.GetTempPath(),
-            $"WrapPassword.IntegrationTests-{Guid.NewGuid():N}");
+        var testDirectory = CreateTestDirectory();
         var outputPath = Path.Combine(testDirectory, "dict.txt");
 
         try
         {
-            var useCase = new GeneratePasswordDictionary(
+            var useCase = new GeneratePasswordDictionaryUseCase(
                 new PasswordDictionaryGenerator(),
                 new PasswordDictionaryFileWriter());
 
@@ -37,10 +35,53 @@ public sealed class DictionaryGenerationIntegrationTests
         }
         finally
         {
-            if (Directory.Exists(testDirectory))
-            {
-                Directory.Delete(testDirectory, recursive: true);
-            }
+            DeleteTestDirectory(testDirectory);
+        }
+    }
+
+    [Fact]
+    public async Task WriteAsync_WhenCancelled_PreservesExistingDictionary()
+    {
+        var testDirectory = CreateTestDirectory();
+        var outputPath = Path.Combine(testDirectory, "dict.txt");
+        await File.WriteAllTextAsync(outputPath, "existing-content");
+        using var cancellationSource = new CancellationTokenSource();
+        cancellationSource.Cancel();
+
+        try
+        {
+            var writer = new PasswordDictionaryFileWriter();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => writer.WriteAsync(
+                    ["replacement-content"],
+                    outputPath,
+                    cancellationSource.Token));
+
+            Assert.Equal("existing-content", await File.ReadAllTextAsync(outputPath));
+            Assert.Equal(outputPath, Assert.Single(Directory.GetFiles(testDirectory)));
+        }
+        finally
+        {
+            DeleteTestDirectory(testDirectory);
+        }
+    }
+
+    private static string CreateTestDirectory()
+    {
+        var testDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"WrapPassword.IntegrationTests-{Guid.NewGuid():N}");
+
+        Directory.CreateDirectory(testDirectory);
+        return testDirectory;
+    }
+
+    private static void DeleteTestDirectory(string testDirectory)
+    {
+        if (Directory.Exists(testDirectory))
+        {
+            Directory.Delete(testDirectory, recursive: true);
         }
     }
 }
