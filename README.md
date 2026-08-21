@@ -15,11 +15,12 @@ Completed:
   rate of nine requests per second.
 - Validate that a successful response contains the expected temporary HTTPS
   upload URL.
+- Build and verify an allowlisted submission ZIP with a SHA-256 manifest.
+- Reject submission ZIPs that are 5,000,000 bytes or larger.
 - Verify the dictionary with unit, integration, and regression tests.
 
 Still to be implemented:
 
-- Create and validate the submission ZIP.
 - Base64-encode and upload the ZIP to the temporary URL.
 
 ## Solution structure
@@ -40,6 +41,7 @@ src/
   WrapPassword.Application/             Use cases, models, and abstractions
   WrapPassword.Infrastructure/          File and external-service adapters
     RecruitmentApi/                     Rate-limited Basic Auth HTTP client
+    Packaging/                          PDF validation and submission ZIP builder
   WrapPassword.Cli/                     Console entry point and dependency wiring
 WrapPassword.Tests/
   WrapPassword.Application.UnitTests/   Dictionary and use-case unit tests
@@ -53,7 +55,7 @@ WrapPassword.Tests/
 | --- | --- | --- |
 | `WrapPassword.Domain` | Nothing | Defines the password variation rules |
 | `WrapPassword.Application` | Domain | Generates and validates candidates and coordinates use cases |
-| `WrapPassword.Infrastructure` | Application | Implements file access and external HTTP; ZIP support comes next |
+| `WrapPassword.Infrastructure` | Application | Implements file access, external HTTP, PDF validation, and ZIP packaging |
 | `WrapPassword.Cli` | Application and Infrastructure | Parses commands and wires implementations to use cases |
 
 Dependencies point toward the Domain. Business rules do not depend on file
@@ -116,7 +118,7 @@ dotnet test WrapPassword.sln --logger "console;verbosity=detailed"
 | Test suite | Purpose |
 | --- | --- |
 | Application unit tests | Verify candidate count, uniqueness, ordering, use-case validation, authentication stopping, exhaustion, and cancellation |
-| Integration tests | Verify UTF-8 file output plus Basic Auth requests, response handling, upload URL validation, and rate limiting with a fake HTTP handler |
+| Integration tests | Verify UTF-8 output, Basic Auth behavior, rate limiting, PDF validation, ZIP contents, exclusions, hashes, and deterministic archives |
 | Regression tests | Detect unintended changes to canonical dictionary content and ordering using a SHA-256 fingerprint |
 
 File integration tests use temporary local directories and clean them afterward.
@@ -158,6 +160,55 @@ d -> d, D
 
 The total is `2 × 3 × 3 × 3 × 2 × 3 × 2 × 2 = 1,296` candidates.
 
+## Prepare the submission ZIP
+
+The `prepare` command performs only local file operations. It generates a fresh
+`dict.txt`, validates the CV, creates the ZIP, reopens and verifies every entry,
+and reports the archive size and SHA-256 hash. It never contacts the recruitment
+API.
+
+From the repository root, provide the path to your CV PDF:
+
+```bash
+dotnet run --project src/WrapPassword.Cli -- prepare "/absolute/path/to/Your-CV.pdf"
+```
+
+The default output is `artifacts/submission.zip`. An alternative output path can
+be provided as the second argument:
+
+```bash
+dotnet run --project src/WrapPassword.Cli -- prepare \
+  "/absolute/path/to/Your-CV.pdf" \
+  "/absolute/path/to/submission.zip"
+```
+
+Expected output:
+
+```text
+Preparing the submission ZIP locally. No network requests will be made.
+Archive: /absolute/path/to/submission.zip
+Files: <entry-count>
+Size: <size> bytes
+SHA-256: <archive-hash>
+```
+
+The ZIP uses an explicit allowlist and contains:
+
+- The CV under `CV/`.
+- The freshly generated `dict.txt`.
+- Domain, Application, Infrastructure, CLI, API, and automated-test source.
+- Project, solution, configuration, formatting, and build-quality files.
+- `README.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/AI_ASSISTANCE.md`.
+- `submission-manifest.json`, which records the path, size, and SHA-256 hash of
+  every payload entry. The manifest does not list itself because a file cannot
+  contain its own final hash.
+
+The builder excludes Git metadata, `bin`, `obj`, SQLite data, test results,
+coverage, previous archives, IDE files, symbolic links, and files outside the
+allowlist. It rejects unsafe entry paths, invalid PDFs, and archives of
+5,000,000 bytes or more. The two files under `docs/` remain ignored by Git but
+must exist locally when preparing the final assessment package.
+
 ## Authentication stage
 
 The authentication client sends sequential `GET` requests using HTTP Basic
@@ -169,10 +220,11 @@ The stage handles `401 Unauthorized` as an incorrect password and continues. On
 `recruitment.warpdevelopment.co.za` under `/v2/api/upload/`. Credentials,
 candidate passwords, Authorization values, and temporary URLs are not logged.
 
-> **Live-request warning:** the upload stage is not implemented yet. Do not run
-> live authentication merely to test it because the temporary URL is intentionally
-> not printed or saved. Use `dotnet test WrapPassword.sln` for safe verification
-> until the complete prepare-authenticate-upload workflow is available.
+> **Live-request warning:** ZIP preparation is complete, but the upload stage is
+> not implemented yet. Do not run live authentication merely to test it because
+> the temporary URL is intentionally not printed or saved. Use
+> `dotnet test WrapPassword.sln` for safe verification until the complete
+> prepare-authenticate-upload workflow is available.
 
 When the complete workflow is ready, its authentication command will be:
 
