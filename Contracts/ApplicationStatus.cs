@@ -1,4 +1,4 @@
-namespace WrapPasswordAssessment.Models;
+namespace WrapPassword.Contracts;
 
 public sealed record ApplicationStatus(
     string Name,

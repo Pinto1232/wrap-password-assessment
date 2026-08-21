@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using WrapPasswordAssessment.Models;
+using WrapPassword.Data.Entities;
 
-namespace WrapPasswordAssessment.Data;
+namespace WrapPassword.Data;
 
 public sealed class ApplicationDbContext : DbContext
 {

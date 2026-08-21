@@ -1,64 +1,154 @@
-# Wrap Password Assessment
+# Wrap Password
 
-An ASP.NET Core API organized around MVC boundaries with a lightweight local
-SQLite database.
+A .NET 9 solution for the Password API Assessment. The required assessment
+workflow is implemented as a console application using Clean Architecture. A
+small ASP.NET Core Minimal API provides an optional SQLite-backed status endpoint.
 
-Requires .NET 9.
+## Current implementation
 
-> **Database note:** The project uses SQLite through Entity Framework Core. The
-> database is created automatically at `Database/wrap-password-assessment.db`
-> when the backend first starts. Database files are not committed, so each clone
-> gets its own local database without requiring a separate database server.
+Completed:
 
-## Architecture
+- Generate every permitted variation of `password`.
+- Validate that the dictionary contains exactly 1,296 unique candidates.
+- Write the candidates to `dict.txt` using UTF-8.
+
+Still to be implemented:
+
+- Authenticate against the recruitment API at no more than 10 requests per
+  second.
+- Create and validate the submission ZIP.
+- Base64-encode and upload the ZIP to the temporary URL.
+
+## Solution structure
 
 ```text
-Controllers/                 ASP.NET API controllers
-Data/                        EF Core database context
-Database/                    Per-clone SQLite data (generated locally)
-Models/                      Backend response models
+WrapPassword.sln
+WrapPassword.csproj                     ASP.NET Core Minimal API host
+Program.cs                              API composition root
+Contracts/                              API request and response contracts
+Data/                                   EF Core database context
+Data/Entities/                          SQLite entities
+Endpoints/                              Minimal API endpoints
+Database/                               Generated local SQLite data
+src/
+  WrapPassword.Domain/                  Core password rules
+  WrapPassword.Application/             Use cases, models, and abstractions
+  WrapPassword.Infrastructure/          File and external-service adapters
+  WrapPassword.Cli/                     Console entry point and dependency wiring
+```
+
+## Clean Architecture
+
+| Project | Depends on | Responsibility |
+| --- | --- | --- |
+| `WrapPassword.Domain` | Nothing | Defines the password variation rules |
+| `WrapPassword.Application` | Domain | Generates and validates candidates and coordinates use cases |
+| `WrapPassword.Infrastructure` | Application | Implements file access and, later, external HTTP and ZIP operations |
+| `WrapPassword.Cli` | Application and Infrastructure | Parses commands and wires implementations to use cases |
+
+Dependencies point toward the Domain. Business rules do not depend on file
+access, HTTP clients, the console, ASP.NET Core, EF Core, or SQLite.
+
+The root Minimal API is currently a separate support host. It exposes application
+status but does not contain or duplicate the password-generation rules.
+
+## Prerequisite
+
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+
+## Build the solution
+
+From the repository root:
+
+```bash
+dotnet build WrapPassword.sln
+```
+
+## Generate the password dictionary
+
+Generate `dict.txt` in the repository root:
+
+```bash
+dotnet run --project src/WrapPassword.Cli -- generate
+```
+
+Provide an optional output path when needed:
+
+```bash
+dotnet run --project src/WrapPassword.Cli -- generate artifacts/dict.txt
+```
+
+Expected output:
+
+```text
+Generated 1 296 password candidates.
+Dictionary: /absolute/path/to/dict.txt
+```
+
+The generator uses these choices independently at each position:
+
+```text
+p -> p, P
+a -> a, A, @
+s -> s, S, 5
+s -> s, S, 5
+w -> w, W
+o -> o, O, 0
+r -> r, R
+d -> d, D
+```
+
+The total is `2 × 3 × 3 × 3 × 2 × 3 × 2 × 2 = 1,296` candidates.
+
+## Run the optional API
+
+```bash
+dotnet run --project WrapPassword.csproj --launch-profile http
+```
+
+The API listens at `http://localhost:5080`. It intentionally serves API routes
+only, so opening the root URL returns HTTP 404.
+
+Check the API and local database connection at:
+
+```text
+http://localhost:5080/api/status
 ```
 
 ## Local database
 
-The backend uses EF Core with SQLite. No database server, Docker container,
-credentials, or manual setup is required. On first startup it creates:
+The API uses Entity Framework Core with SQLite. No database server, Docker
+container, credentials, or manual setup is required. On first startup it creates:
 
 ```text
 Database/wrap-password-assessment.db
 ```
 
-The database schema and initial application metadata are created automatically.
-Database files and SQLite journal files are ignored by Git, so every clone gets
-an independent local database rather than sharing mutable data in the repository.
+The connection string is configured in `appsettings.json`. Database and journal
+files are ignored by Git, so every clone receives an independent local database.
 
-The connection string is configured in `appsettings.json`. To reset the local
-database, stop the backend, delete `Database/wrap-password-assessment.db`, and
-start the backend again.
+To reset it, stop the API, delete `Database/wrap-password-assessment.db`, and
+start the API again.
 
-## Development
+## Publish
 
-Run the backend API:
+Publish the console application:
 
 ```bash
-dotnet run --launch-profile http
+dotnet publish src/WrapPassword.Cli/WrapPassword.Cli.csproj -c Release -o artifacts/cli
 ```
 
-The backend API runs at `http://localhost:5080`. Opening the root URL returns
-HTTP 404 by design because the application serves API routes only.
-
-Database connectivity is included in `http://localhost:5080/api/status`.
-
-## Production build
-
-Build and publish the backend:
+Publish the optional API separately:
 
 ```bash
-dotnet publish -c Release
+dotnet publish WrapPassword.csproj -c Release -o artifacts/api
 ```
 
-## Verification
+## Local and generated files
 
-```bash
-dotnet build
-```
+The following paths are intentionally ignored by Git:
+
+- `dict.txt` and `artifacts/` — generated assessment output.
+- `Database/*.db*` — per-clone SQLite data.
+- `docs/` — local planning and AI-assistance records that will be added directly
+  to the final submission ZIP.

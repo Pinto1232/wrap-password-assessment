@@ -24,6 +24,13 @@ coverage/
 *.coverage
 *.coveragexml
 
+## Local assessment planning
+/docs/
+
+## Generated assessment artifacts
+/dict.txt
+/artifacts/
+
 ## OS metadata
 .DS_Store
 Thumbs.db

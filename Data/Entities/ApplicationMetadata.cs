@@ -1,4 +1,4 @@
-namespace WrapPasswordAssessment.Models;
+namespace WrapPassword.Data.Entities;
 
 public sealed class ApplicationMetadata
 {

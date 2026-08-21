@@ -1,7 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using WrapPasswordAssessment.Data;
-using WrapPasswordAssessment.Models;
+using WrapPassword.Data;
+using WrapPassword.Data.Entities;
+using WrapPassword.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,7 +21,6 @@ var databaseDirectory = Path.GetDirectoryName(connectionStringBuilder.DataSource
     ?? throw new InvalidOperationException("The SQLite database directory could not be resolved.");
 Directory.CreateDirectory(databaseDirectory);
 
-builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionStringBuilder.ConnectionString));
@@ -50,8 +50,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-app.UseAuthorization();
-
-app.MapControllers();
+app.MapStatusEndpoints();
 
 app.Run();
